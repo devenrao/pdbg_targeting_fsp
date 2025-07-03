@@ -7,13 +7,10 @@ extern "C"
 {
 #include <libfdt.h>
 }
-#include <algorithm>
+#include <association.H>
+#include <predicatebase.H>
 #include <generator>
 #include <map>
-#include <memory>
-#include <unordered_map>
-#include <vector>
-
 namespace TARGETING::internal
 {
 class TargetDevtreeMap
@@ -22,42 +19,24 @@ class TargetDevtreeMap
     explicit TargetDevtreeMap(const void* fdt);
     ~TargetDevtreeMap() = default;
 
-    TargetPtr getParentOf(const TargetPtr child) const;
-
-    std::generator<TargetPtr> iterateAllTargets() const;
-
-    TargetPtr getNextTarget(const TargetPtr& target) const noexcept;
-
-    TargetPtr getTopLevelTarget() const noexcept;
+    TargetPtr getParentOf(const TargetPtr& child,
+                          const AssociationType type) const;
 
     TargetPtr toTarget(const EntityPath& i_entityPath) const;
 
-    std::generator<TargetPtr>
-        getImmediateChildren(const TargetPtr& parent) const;
+    std::generator<TargetPtr> getAssociated(
+        const TargetPtr& source, const AssociationType type = childByAffinity,
+        const RecursionLevel recursionLevel = immediate,
+        const PredicateBase* predicate = nullptr) const;
 
   private:
     void indexAllNodes();
 
-    EntityPath parseEntityPath(int offset) const;
-
-    std::generator<TargetPtr> preOrderTraversal(const EntityPath& root) const;
-
-    std::generator<TargetPtr> iterateTargetsByType(TYPE type) const;
-
-    std::generator<TargetPtr> iterateDescendantsOfType(TYPE type) const;
-
-    std::generator<TargetPtr> iterateImmediateChildrenOfType(TYPE type) const;
+    EntityPath parseEntityPathProperty(int offset, const char* propName) const;
 
   private:
     const void* _fdt;
-
-    struct NodeInfo
-    {
-        int offset;
-        EntityPath path;
-    };
-
-    std::map<EntityPath, NodeInfo> _pathToNode;
-    std::unordered_map<TYPE, std::vector<NodeInfo>> _typeIndex;
+    std::map<EntityPath, int> _phyPathToNode;
+    std::map<EntityPath, int> _affinityPathToNode;
 };
-} // namespace TARGETING
+} // namespace TARGETING::internal

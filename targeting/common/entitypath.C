@@ -1,9 +1,8 @@
-#include <targeting/common/entitypath.H>
+#include <entitypath.H>
 
 #include <algorithm>
 #include <cassert>
 #include <cstring>
-#include <iostream>
 #include <sstream>
 
 namespace TARGETING
@@ -50,10 +49,8 @@ EntityPath EntityPath::copyAddLast(TYPE type, uint8_t instance) const
 
 bool EntityPath::operator==(const EntityPath& rhs) const
 {
-    return type() == rhs.type() &&
-           getSize() == rhs.getSize() &&
-           std::equal(std::begin(_elements),
-                      std::begin(_elements) + getSize(),
+    return type() == rhs.type() && getSize() == rhs.getSize() &&
+           std::equal(std::begin(_elements), std::begin(_elements) + getSize(),
                       std::begin(rhs._elements));
 }
 
@@ -62,9 +59,9 @@ bool EntityPath::operator<(const EntityPath& rhs) const
     if (type() != rhs.type())
         return type() < rhs.type();
 
-    int cmp = std::memcmp(
-        _elements, rhs._elements,
-        std::min(getSize(), rhs.getSize()) * sizeof(PathElement));
+    int cmp =
+        std::memcmp(_elements, rhs._elements,
+                    std::min(getSize(), rhs.getSize()) * sizeof(PathElement));
 
     if (cmp != 0)
         return cmp < 0;
@@ -109,11 +106,16 @@ std::string EntityPath::pathTypeAsString() const
 {
     switch (type())
     {
-        case PathType::Device:   return "Device:";
-        case PathType::Affinity: return "Logical:";
-        case PathType::Physical: return "Physical:";
-        case PathType::Power:    return "Power:";
-        default:                 return "Unknown entity path type";
+        case PathType::Device:
+            return "Device:";
+        case PathType::Affinity:
+            return "Logical:";
+        case PathType::Physical:
+            return "Physical:";
+        case PathType::Power:
+            return "Power:";
+        default:
+            return "Unknown entity path type";
     }
 }
 
@@ -136,6 +138,8 @@ std::string EntityPath::pathElementTypeAsString(TYPE type) const
             return "MCC";
         case TYPE_OMI:
             return "OMI";
+        case TYPE_OCMB_CHIP:
+            return "OCMB";
         default:
             return "Unknown path type";
     }

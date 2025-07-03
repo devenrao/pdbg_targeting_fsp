@@ -65,7 +65,7 @@ template <> class AttributeTraits<ATTR_FAPI_NAME>
         notFspMutex,
         fspAccessible
     };
-    typedef char Type[64];
+    typedef std::string Type;
 #if __cplusplus >= 201103L
     typedef std::array<char, 64> TypeStdArr;
 #endif
@@ -250,6 +250,22 @@ template <> class AttributeTraits<ATTR_TYPE>
 #endif
 };
 
+template <> class AttributeTraits<ATTR_CLASS>
+{
+  public:
+    enum
+    {
+        readable,
+        hasStringConversion,
+        notHbMutex,
+        notFspMutex,
+        fspAccessible
+    };
+    typedef uint8_t Type;
+#if __cplusplus >= 201103L
+    static constexpr uint32_t CLASS_INVALID = 0x7F;
+#endif
+};
 template <> class AttributeTraits<ATTR_PHYS_BIN_PATH>
 {
   public:
@@ -278,7 +294,20 @@ template <> class AttributeTraits<ATTR_PHYS_PATH>
 #if __cplusplus >= 201103L
 #endif
 };
-
+template <> class AttributeTraits<ATTR_AFFINITY_PATH>
+{
+  public:
+    enum
+    {
+        readable,
+        notHbMutex,
+        notFspMutex,
+        fspAccessible
+    };
+    typedef EntityPath Type;
+#if __cplusplus >= 201103L
+#endif
+};
 // Type aliases and/or sizes for ATTR_TYPE attribute
 typedef TYPE TYPE_ATTR;
 typedef TYPE ATTR_TYPE_type;

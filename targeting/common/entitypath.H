@@ -84,7 +84,7 @@ class EntityPath
     {
         _header = (_header & 0x0F) | ((static_cast<uint8_t>(type) & 0x0F) << 4);
     }
-    
+
     std::string pathTypeAsString() const;
     std::string pathElementTypeAsString(TYPE type) const;
     std::string toString() const;

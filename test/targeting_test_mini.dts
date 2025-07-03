@@ -3,7 +3,8 @@
 / {
     ATTR_FAPI_NAME = "k0";
     ATTR_HWAS_STATE = [ 00 00 00 00 00 ];
-    ATTR_PHYS_BIN_PATH = [ 21 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ];
+    ATTR_AFFINITY_PATH = [ 11 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ];
+    ATTR_PHYS_PATH = [ 21 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ];
     ATTR_PHYS_DEV_PATH = "physical:sys-0";
     ATTR_TYPE = [ 01 ];
     ATTR_CLASS = [ 01 ];
@@ -12,7 +13,8 @@
         index = <0x00>;
         ATTR_FAPI_NAME = "pu:k0:n0";
         ATTR_HWAS_STATE = [ 00 00 00 00 00 ];
-        ATTR_PHYS_BIN_PATH = [ 22 01 00 02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ];
+        ATTR_AFFINITY_PATH = [ 12 01 00 02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ];
+        ATTR_PHYS_PATH = [ 22 01 00 02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ];
         ATTR_PHYS_DEV_PATH = "physical:sys-0/node-0";
         ATTR_TYPE = [ 02 ];
         ATTR_CLASS = [ 02 ];
@@ -23,10 +25,11 @@
             ATTR_FAPI_NAME = "pu:k0:n0:p00";
             ATTR_HWAS_STATE = [ 00 00 00 00 00 ];
             ATTR_LOCATION_CODE = "Ufcs-P0-C15";
-            ATTR_PHYS_BIN_PATH = [ 23 01 00 02 00 05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ];
+            ATTR_AFFINITY_PATH = [ 13 01 00 02 00 05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ];
+            ATTR_PHYS_PATH = [ 23 01 00 02 00 05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ];
             ATTR_PHYS_DEV_PATH = "physical:sys-0/node-0/proc-0";
             ATTR_TYPE = [ 05 ];
             ATTR_CLASS = [ 05 ];
-        };
-    };
-};
+        }; //proc0
+    }; //node0
+}; //sys0

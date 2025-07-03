@@ -1,96 +1,230 @@
+#include <association.H>
 #include <attributeenums.H>
-#include <entitypath.H>
+#include <attributetraits.H>
+#include <predicateattr.H>
+#include <predicateattrval.H>
+#include <predicatepostfixexpr.H>
 #include <target.H>
-#include <target_devtree_map.H>
 #include <target_service.H>
 
-#include <fstream>
-#include <vector>
-
 #include <gtest/gtest.h>
-#include <array>
-
-using namespace targeting;
-
-TEST(TargetDevtreeMapTest, LoadTopLevelTargetAndCheckAttributes)
-{
-    // Load DTB into memory
-    std::ifstream file("test/targeting_test.dtb", std::ios::binary);
-    ASSERT_TRUE(file.is_open()) << "Failed to open targeting_test.dtb";
-
-    std::vector<char> dtbData((std::istreambuf_iterator<char>(file)),
-                              std::istreambuf_iterator<char>());
-    file.close();
-
-    ASSERT_GT(dtbData.size(), 0) << "DTB is empty";
-
-    const void* fdt = dtbData.data();
-    ASSERT_EQ(fdt_check_header(fdt), 0) << "Invalid FDT header";
-
-    // Construct devtree map
-    TargetDevtreeMap map(fdt);
-
-    // Build expected top-level EntityPath
-    EntityPath path;
-    path.setType(EntityPath::PathType::Physical);
-    path.addLast(TYPE_SYS, 0);
-
-    auto target = map.toTarget(path);
-    ASSERT_NE(target, nullptr) << "Top-level target not found";
-
-    // Check ATTR_TYPE
-    uint8_t typeVal = 0;
-    bool foundType = target->tryGetAttr<ATTR_TYPE>(typeVal);
-    ASSERT_TRUE(foundType) << "ATTR_TYPE not found";
-    EXPECT_EQ(typeVal, TYPE_SYS) << "ATTR_TYPE value mismatch";
-
-    // Check ATTR_CLASS
-    uint8_t classVal = 0;
-    bool foundClass = target->tryGetAttr<ATTR_CLASS>(classVal);
-    ASSERT_TRUE(foundClass) << "ATTR_CLASS not found";
-    EXPECT_EQ(classVal, 0x01) << "ATTR_CLASS value mismatch";
-}
-
 using namespace TARGETING;
 
-TEST(EntityPathTest, FromBinary_SingleElement)
+class TargetServiceTest : public ::testing::Test
 {
-    std::array<uint8_t, 3> data = { 0x21, 0x01, 0x00 }; // Physical, 1 element: SYS0
+  protected:
+    void SetUp() override
+    {
+        TargetService::instance().init("../target/test/targeting_test.dtb");
+    }
 
-    EntityPath path = EntityPath::fromBinary(data);
-    EXPECT_EQ(path.type(), EntityPath::PathType::Physical);
-    EXPECT_EQ(path.getSize(), 1);
-    EXPECT_EQ(path[0].type(), TYPE_SYS);
-    EXPECT_EQ(path[0].instance, 0);
-    EXPECT_EQ(path.toString(), "Physical/Sys0");
+    TargetPtr getFirstTargetMatchingType(TYPE type)
+    {
+        for (auto&& tgt : TargetService::instance().getAssociated(
+                 TargetService::instance().getTopLevelTarget(),
+                 AssociationType::childByPhysical, all))
+        {
+            AttributeTraits<ATTR_TYPE>::Type rawVal = 0;
+            if (tgt->tryGetAttr<ATTR_TYPE>(rawVal) &&
+                static_cast<TYPE>(rawVal) == type)
+            {
+                return std::move(tgt);
+            }
+        }
+        return nullptr;
+    }
+};
+
+TEST_F(TargetServiceTest, TestFDTNotNull)
+{
+    EXPECT_NE(TargetService::instance().getFDT(), nullptr);
 }
 
-TEST(EntityPathTest, FromBinary_TwoElements)
+//////////////TEST getTopLevelTarget method//////////
+TEST_F(TargetServiceTest, TestTopLevelTarget)
 {
-    std::array<uint8_t, 5> data = { 0x22, 0x01, 0x00, 0x02, 0x00 }; // SYS0, NODE0
+    auto top = TargetService::instance().getTopLevelTarget();
+    ASSERT_NE(top, nullptr);
 
-    EntityPath path = EntityPath::fromBinary(data);
-    EXPECT_EQ(path.getSize(), 2);
-    EXPECT_EQ(path[0].type(), TYPE_SYS);
-    EXPECT_EQ(path[1].type(), TYPE_NODE);
-    EXPECT_EQ(path.toString(), "Physical/Sys0/Node0");
+    AttributeTraits<ATTR_FAPI_NAME>::Type name;
+    EXPECT_TRUE(top->tryGetAttr<ATTR_FAPI_NAME>(name));
+    EXPECT_TRUE(name.starts_with("k0"));
 }
 
-TEST(EntityPathTest, FromBinary_ThreeElements)
+//////////////TEST getParentOf method//////////
+TEST_F(TargetServiceTest, TestGetParentOfOcmbImmediatePhysical)
 {
-    std::array<uint8_t, 7> data = { 0x23, 0x01, 0x00, 0x02, 0x00, 0x05, 0x00 }; // SYS0, NODE0, PROC0
+    auto ocmb = getFirstTargetMatchingType(TYPE_OCMB_CHIP);
+    ASSERT_NE(ocmb, nullptr);
 
-    EntityPath path = EntityPath::fromBinary(data);
-    EXPECT_EQ(path.getSize(), 3);
-    EXPECT_EQ(path[2].type(), TYPE_PROC);
-    EXPECT_EQ(path.toString(), "Physical/Sys0/Node0/Proc0");
+    auto parent = TargetService::instance().getParentOf(
+        ocmb, AssociationType::parentByPhysical);
+    ASSERT_NE(parent, nullptr);
+
+    AttributeTraits<ATTR_TYPE>::Type rawVal = 0;
+    EXPECT_TRUE(parent->tryGetAttr<ATTR_TYPE>(rawVal));
+    EXPECT_EQ(static_cast<TYPE>(rawVal), TYPE_NODE);
 }
 
-TEST(EntityPathTest, FromBinary_TooShortData)
+TEST_F(TargetServiceTest, TestGetParentOfOcmbImmediateAffinity)
 {
-    std::array<uint8_t, 1> data = { 0x21 }; // Missing two bytes for one element
+    auto ocmb = getFirstTargetMatchingType(TYPE_OCMB_CHIP);
+    ASSERT_NE(ocmb, nullptr);
 
-    EntityPath path = EntityPath::fromBinary(data);
-    EXPECT_EQ(path.getSize(), 0);
+    auto parent = TargetService::instance().getParentOf(
+        ocmb, AssociationType::parentByAffinity);
+    ASSERT_NE(parent, nullptr);
+
+    AttributeTraits<ATTR_TYPE>::Type rawVal = 0;
+    EXPECT_TRUE(parent->tryGetAttr<ATTR_TYPE>(rawVal));
+    EXPECT_EQ(static_cast<TYPE>(rawVal), TYPE_OMI);
 }
 
+//////////////TEST getAssociated method//////////
+TEST_F(TargetServiceTest, TestGetAssociatedChildrenImmediate)
+{
+    auto proc = getFirstTargetMatchingType(TYPE_PROC);
+    ASSERT_NE(proc, nullptr);
+
+    int count = 0;
+    for (auto&& child : TargetService::instance().getAssociated(
+             proc, AssociationType::childByPhysical, RecursionLevel::immediate))
+    {
+        ++count;
+        EXPECT_NE(child, nullptr);
+
+        AttributeTraits<ATTR_TYPE>::Type t;
+        EXPECT_TRUE(child->tryGetAttr<ATTR_TYPE>(t));
+        EXPECT_EQ(t, TYPE_MC); // Direct child of PROC is MC
+    }
+    EXPECT_GT(count, 0);
+}
+
+TEST_F(TargetServiceTest, TestGetAssociatedParentsAffinityAll)
+{
+    auto ocmb = getFirstTargetMatchingType(TYPE_OCMB_CHIP);
+    ASSERT_NE(ocmb, nullptr);
+
+    std::vector<TYPE> expectedHierarchy = {
+        TYPE_OMI, TYPE_MCC, TYPE_MI, TYPE_MC, TYPE_PROC, TYPE_NODE, TYPE_SYS};
+
+    std::vector<AttributeTraits<ATTR_TYPE>::Type> actual;
+
+    for (auto&& parent : TargetService::instance().getAssociated(
+             ocmb, AssociationType::parentByAffinity, RecursionLevel::all))
+    {
+        AttributeTraits<ATTR_TYPE>::Type t;
+        EXPECT_TRUE(parent->tryGetAttr<ATTR_TYPE>(t));
+        actual.push_back(t);
+    }
+
+    EXPECT_TRUE(
+        std::includes(actual.begin(), actual.end(), expectedHierarchy.begin(),
+                      expectedHierarchy.end()));
+}
+
+TEST_F(TargetServiceTest, TestRoundTripToTarget)
+{
+    auto ocmb = getFirstTargetMatchingType(TYPE_OCMB_CHIP);
+    ASSERT_NE(ocmb, nullptr);
+
+    EntityPath path;
+    EXPECT_TRUE(ocmb->tryGetAttr<ATTR_PHYS_PATH>(path));
+
+    auto roundtrip = TargetService::instance().toTarget(path);
+    ASSERT_NE(roundtrip, nullptr);
+
+    EXPECT_EQ(roundtrip->_offset, ocmb->_offset);
+}
+
+///////////////PREDICATES//////////////////////////////
+TEST_F(TargetServiceTest, TestPredicateAttrValProcType)
+{
+    PredicateAttrVal<ATTR_TYPE> pred(TYPE_PROC);
+    int count = 0;
+
+    for (auto&& tgt : TargetService::instance().getAssociated(
+             TargetService::instance().getTopLevelTarget(),
+             AssociationType::childByPhysical, RecursionLevel::all, &pred))
+    {
+        AttributeTraits<ATTR_TYPE>::Type t;
+        EXPECT_TRUE(tgt->tryGetAttr<ATTR_TYPE>(t));
+        EXPECT_EQ(t, TYPE_PROC);
+        ++count;
+    }
+
+    EXPECT_EQ(count, 2); // Your DTB has proc0, proc1
+}
+
+TEST_F(TargetServiceTest, TestPredicatePostfixExpr_AttrVal_AND)
+{
+    auto isProc = std::make_shared<PredicateAttrVal<ATTR_TYPE>>(TYPE_PROC);
+    auto isClassProc = std::make_shared<PredicateAttrVal<ATTR_CLASS>>(CLASS_CHIP);
+
+    PredicatePostfixExpr expr;
+    expr.push(isProc).push(isClassProc).And();
+
+    int count = 0;
+    for (auto&& tgt : TargetService::instance().getAssociated(
+             TargetService::instance().getTopLevelTarget(),
+             AssociationType::childByPhysical, RecursionLevel::all, &expr))
+    {
+        AttributeTraits<ATTR_TYPE>::Type type;
+        AttributeTraits<ATTR_CLASS>::Type cls;
+        EXPECT_TRUE(tgt->tryGetAttr<ATTR_TYPE>(type));
+        EXPECT_TRUE(tgt->tryGetAttr<ATTR_CLASS>(cls));
+        EXPECT_EQ(type, TYPE_PROC);
+        EXPECT_EQ(cls, CLASS_CHIP);
+        ++count;
+    }
+
+    EXPECT_EQ(count, 2); // proc0, proc1
+}
+
+TEST_F(TargetServiceTest, TestPredicatePostfixExpr_AttrMask_OR)
+{
+    // Match TYPE_PROC (0x05) OR TYPE_MC (0x44)
+    auto isProc = std::make_shared<PredicateAttrVal<ATTR_TYPE>>(TYPE_PROC);
+    auto isMC = std::make_shared<PredicateAttrVal<ATTR_TYPE>>(TYPE_MC);
+
+    PredicatePostfixExpr expr;
+    expr.push(isProc).push(isMC).Or();
+
+    std::vector<AttributeTraits<ATTR_TYPE>::Type> matchedTypes;
+
+    for (auto&& tgt : TargetService::instance().getAssociated(
+             TargetService::instance().getTopLevelTarget(),
+             AssociationType::childByPhysical, RecursionLevel::all, &expr))
+    {
+        AttributeTraits<ATTR_TYPE>::Type t;
+        EXPECT_TRUE(tgt->tryGetAttr<ATTR_TYPE>(t));
+        matchedTypes.push_back(t);
+        EXPECT_TRUE(t == TYPE_PROC || t == TYPE_MC);
+    }
+
+    EXPECT_GT(matchedTypes.size(), 0);
+    EXPECT_TRUE(std::find(matchedTypes.begin(), matchedTypes.end(),
+                          TYPE_PROC) != matchedTypes.end());
+    EXPECT_TRUE(std::find(matchedTypes.begin(), matchedTypes.end(), TYPE_MC) !=
+                matchedTypes.end());
+}
+
+TEST_F(TargetServiceTest, TestPredicatePostfixExpr_Negation)
+{
+    auto isNotProc = std::make_shared<PredicateAttrVal<ATTR_TYPE>>(TYPE_PROC);
+    PredicatePostfixExpr expr;
+    expr.push(isNotProc).Not();
+
+    int count = 0;
+    for (auto&& tgt : TargetService::instance().getAssociated(
+             TargetService::instance().getTopLevelTarget(),
+             AssociationType::childByPhysical, RecursionLevel::all, &expr))
+    {
+        AttributeTraits<ATTR_TYPE>::Type t;
+        EXPECT_TRUE(tgt->tryGetAttr<ATTR_TYPE>(t));
+        EXPECT_NE(t, TYPE_PROC);
+        ++count;
+    }
+
+    EXPECT_GT(count, 0); // Should exclude proc0/1/2
+}

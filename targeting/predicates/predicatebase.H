@@ -15,8 +15,9 @@ class PredicateBase
 
   protected:
     PredicateBase() = default;
-    PredicateBase(const PredicateBase&) = default;
-    PredicateBase& operator=(const PredicateBase&) = default;
+    //Disble copy
+    PredicateBase(const PredicateBase&) = delete;
+    PredicateBase& operator=(const PredicateBase&) = delete;
 };
 
 } // namespace TARGETING

@@ -1,13 +1,13 @@
 #pragma once
 
+#include <association.H>
 #include <dtree_loader.H>
+#include <predicatebase.H>
 #include <target.H>
 #include <target_devtree_map.H>
-
 #include <cstdint>
 #include <generator>
-#include <vector>
-#include <predicatebase.H>
+
 namespace TARGETING
 {
 using internal::TargetDevtreeMap;
@@ -25,13 +25,18 @@ class TargetService
         return _loader ? _loader->fdt() : nullptr;
     }
 
-    std::generator<TargetPtr> iterateAllTargets() const;
+    std::generator<TargetPtr> getAssociated(
+        const TargetPtr& source, const AssociationType type = childByAffinity,
+        const RecursionLevel recursionLevel = immediate,
+        const PredicateBase* predicate = nullptr) const;
 
-    std::generator<TargetPtr> getAssociated(const PredicateBase& predicate) const;
+    TargetPtr getParentOf(const TargetPtr& child,
+                          const AssociationType type = parentByAffinity) const;
 
-    TargetPtr getParentOf(const TargetPtr child) const;
-    
-    std::generator<TargetPtr> getImmediateChildren(const TargetPtr& parent) const;
+    TargetPtr toTarget(const EntityPath& i_entityPath) const;
+
+    TargetPtr getTopLevelTarget() const noexcept;
+
   private:
     TargetService() = default;
     ~TargetService() = default;
@@ -43,6 +48,8 @@ class TargetService
     {
         return _initialized;
     }
+
+    int _rootOffset = -1;
     std::unique_ptr<DeviceTreeLoader> _loader;
     std::unique_ptr<TargetDevtreeMap> _targetMap;
 

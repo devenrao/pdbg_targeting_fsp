@@ -1,9 +1,9 @@
 #pragma once
 
-#include <predicatebase.H>
-#include <target.H>
 #include <attributeenums.H>
 #include <attributetraits.H>
+#include <predicatebase.H>
+#include <target.H>
 
 namespace TARGETING
 {
@@ -13,9 +13,7 @@ class Target;
 template <const ATTRIBUTE_ID A> class PredicateAttr : public PredicateBase
 {
   public:
-    explicit PredicateAttr()
-    {
-    }
+    explicit PredicateAttr() {}
 
     ~PredicateAttr() override = default;
 
@@ -26,7 +24,7 @@ template <const ATTRIBUTE_ID A> class PredicateAttr : public PredicateBase
         return match;
     }
 
-    // Optional: prevent copy/move if not needed
+    //Disable copy
     PredicateAttr(const PredicateAttr&) = delete;
     PredicateAttr& operator=(const PredicateAttr&) = delete;
 };

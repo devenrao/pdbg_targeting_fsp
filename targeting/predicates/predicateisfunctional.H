@@ -1,9 +1,8 @@
 #pragma once
 
+#include <attributeenums.H>
 #include <predicatebase.H>
 #include <target.H>
-#include <attributeenums.H>
-#include <attributetraits.H>
 
 namespace targeting
 {
@@ -18,6 +17,10 @@ class PredicateIsFunctional : public PredicateBase
     {
         return target && target->getAttr<ATTR_HWAS_STATE>().functional;
     }
+
+    //Disable copy
+    PredicateIsFunctional(const PredicateIsFunctional&) = delete;
+    PredicateIsFunctional& operator=(const PredicateIsFunctional&) = delete;
 };
 
 } // namespace targeting

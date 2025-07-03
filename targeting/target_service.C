@@ -3,7 +3,6 @@ extern "C"
 {
 #include <libfdt.h>
 }
-#include <log.hpp>
 
 #include <fstream>
 #include <vector>
@@ -25,51 +24,52 @@ void TargetService::init(const std::string& dtbPath)
     }
     _loader = std::make_unique<DeviceTreeLoader>(dtbPath);
 
-    int rootOffset = fdt_path_offset(_loader->fdt(), "/");
-    if (rootOffset < 0)
+    _rootOffset = fdt_path_offset(_loader->fdt(), "/");
+    if (_rootOffset < 0)
     {
         throw std::runtime_error("Failed to find root node");
     }
 
-    _targetMap = std::unique_ptr<TargetDevtreeMap>(new TargetDevtreeMap(_loader->fdt()));
+    _targetMap =
+        std::unique_ptr<TargetDevtreeMap>(new TargetDevtreeMap(_loader->fdt()));
     _initialized = true;
 }
 
-std::generator<TargetPtr> TargetService::iterateAllTargets() const
+std::generator<TargetPtr> TargetService::getAssociated(
+    const TargetPtr& source, AssociationType type,
+    RecursionLevel recursionLevel, const PredicateBase* predicate) const
 {
     if (!_targetMap)
-    {
         co_return;
-    }
 
-    for (auto&& target : _targetMap->iterateAllTargets())
+    for (auto&& target :
+         _targetMap->getAssociated(source, type, recursionLevel, predicate))
     {
         co_yield std::move(target);
     }
 }
 
-std::generator<TargetPtr> TargetService::getAssociated(const PredicateBase& predicate) const
+TargetPtr TargetService::getParentOf(const TargetPtr& child,
+                                     AssociationType type) const
 {
-    for (auto&& target : iterateAllTargets())  // target is TargetPtr
-    {
-        if (predicate(target))
-        {
-            co_yield std::move(target); // return ownership
-        }
-    }
+    return _targetMap->getParentOf(child, type);
 }
 
-std::generator<TargetPtr>
-TargetService::getImmediateChildren(const TargetPtr& parent) const
+TargetPtr TargetService::toTarget(const EntityPath& entityPath) const
 {
     if (!_targetMap)
     {
-        co_return;
+        return nullptr;
     }
+    return _targetMap->toTarget(entityPath);
+}
 
-    for (auto&& child : _targetMap->getImmediateChildren(parent))
+TargetPtr TargetService::getTopLevelTarget() const noexcept
+{
+    if (_rootOffset < 0)
     {
-        co_yield std::move(child);
+        return nullptr;
     }
+    return std::make_unique<Target>(_loader->fdt(), _rootOffset);
 }
 } // namespace TARGETING

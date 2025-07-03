@@ -10,18 +10,15 @@ extern "C"
 {
 #include <libfdt.h>
 }
-#include <vector>
+
 namespace TARGETING
 {
 class Target;
 using TargetPtr = std::unique_ptr<Target>;
-using TargetPtrList = std::vector<TargetPtr>;
 class Target
 {
   public:
-    Target(const void* fdt, int offset) : _fdt(fdt), _offset(offset)
-    {
-    }
+    Target(const void* fdt, int offset) : _fdt(fdt), _offset(offset) {}
     ~Target() = default;
     template <const TARGETING::ATTRIBUTE_ID A>
     bool tryGetAttr(
@@ -45,7 +42,7 @@ bool tryGetAttrHelper(const void* fdt, int offset, std::string propName,
     int len = 0;
 
     const void* prop = fdt_getprop(fdt, offset, propName.c_str(), &len);
-    if (!prop)
+    if (!prop || len < static_cast<int>(sizeof(T)))
     {
         return false;
     }
@@ -61,16 +58,15 @@ bool tryGetAttrHelper(const void* fdt, int offset, std::string propName,
     return true;
 }
 
-
 template <>
-inline bool tryGetAttrHelper<EntityPath>(const void* fdt, int offset,
-    std::string propName, EntityPath& outVal)
+inline bool tryGetAttrHelper<EntityPath>(
+    const void* fdt, int offset, std::string propName, EntityPath& outVal)
 {
     int len = 0;
     const uint8_t* prop = reinterpret_cast<const uint8_t*>(
         fdt_getprop(fdt, offset, propName.c_str(), &len));
 
-    if (!prop || len < 1)
+    if (!prop || len < static_cast<int>(sizeof(EntityPath)))
         return false;
 
     std::span<const uint8_t> data(prop, static_cast<size_t>(len));
@@ -79,14 +75,15 @@ inline bool tryGetAttrHelper<EntityPath>(const void* fdt, int offset,
     // If it has zero size after decoding, consider it a failure
     return outVal.getSize() > 0;
 }
+
 template <>
-inline bool tryGetAttrHelper<std::string>(const void* fdt, int offset,
-                                          std::string propName,
-                                          std::string& outVal)
+inline bool tryGetAttrHelper<std::string>(
+    const void* fdt, int offset, std::string propName, std::string& outVal)
 {
     int len = 0;
     const char* prop = static_cast<const char*>(
         fdt_getprop(fdt, offset, propName.c_str(), &len));
+
     if (!prop || len <= 0)
         return false;
 
@@ -101,6 +98,8 @@ bool Target::tryGetAttr(typename AttributeTraits<A>::Type& o_attrValue) const
     auto nameOpt = tryGetAttrName<A>();
     if (!nameOpt)
     {
+        std::cout << "Attribute name not found, missing in attributenums.H"
+                  << std::endl;
         return false;
     }
     return tryGetAttrHelper(_fdt, _offset, *nameOpt, o_attrValue);

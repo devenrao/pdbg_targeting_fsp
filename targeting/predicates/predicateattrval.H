@@ -1,9 +1,9 @@
 #pragma once
 
-#include <predicatebase.H>
-#include <target.H>
 #include <attributeenums.H>
 #include <attributetraits.H>
+#include <predicatebase.H>
+#include <target.H>
 
 namespace TARGETING
 {
@@ -11,8 +11,8 @@ namespace TARGETING
 template <const ATTRIBUTE_ID A> class PredicateAttrVal : public PredicateBase
 {
   public:
-    explicit PredicateAttrVal(
-        const typename AttributeTraits<A>::Type& value) : _value(value)
+    explicit PredicateAttrVal(const typename AttributeTraits<A>::Type& value) :
+        _value(value)
     {}
 
     ~PredicateAttrVal() override = default;
@@ -23,7 +23,7 @@ template <const ATTRIBUTE_ID A> class PredicateAttrVal : public PredicateBase
         return target->tryGetAttr<A>(actual) && (actual == _value);
     }
 
-    // Disable copy and assignment
+    //Disabl copy
     PredicateAttrVal(const PredicateAttrVal&) = delete;
     PredicateAttrVal& operator=(const PredicateAttrVal&) = delete;
 

@@ -2,8 +2,9 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-#include <string>
+
 #include <optional>
+#include <string>
 namespace TARGETING
 {
 
@@ -22,7 +23,9 @@ enum ATTRIBUTE_ID
     ATTR_SPI_BUS_DIV_REF,
     ATTR_TYPE,
     ATTR_PHYS_PATH,
-    ATTR_POSITION
+    ATTR_POSITION,
+    ATTR_AFFINITY_PATH,
+    ATTR_CLASS,
 };
 
 /**
@@ -153,8 +156,7 @@ enum ENGINE_TYPE
 };
 
 // TODO:need to use auto-generated targAttrIdToName.C
-template <ATTRIBUTE_ID A>
-std::optional<std::string> tryGetAttrName()
+template <ATTRIBUTE_ID A> std::optional<std::string> tryGetAttrName()
 {
     switch (A)
     {
@@ -184,8 +186,12 @@ std::optional<std::string> tryGetAttrName()
             return "ATTR_TYPE";
         case ATTR_PHYS_PATH:
             return "ATTR_PHYS_PATH";
+        case ATTR_AFFINITY_PATH:
+            return "ATTR_AFFINITY_PATH";
         case ATTR_POSITION:
             return "ATTR_POSITION";
+        case ATTR_CLASS:
+            return "ATTR_CLASS";
         default:
             return std::nullopt;
     }
